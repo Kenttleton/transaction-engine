@@ -16,8 +16,9 @@ fn main() {
     let args = Args::parse();
     let reader = csv::ReaderBuilder::new().trim(Trim::All).from_path(args.filepath);
     match reader {
-        Ok(mut records) => {
-            collection_handler(records.records());
+        Ok(mut file) => {
+            // unhandled error
+            collection_handler(file.records());
         },
         Err(e) => {
             println!("{}", e);
@@ -26,9 +27,17 @@ fn main() {
 }
 
 fn collection_handler(collection: StringRecordsIter<File>) {
+    let mut records: Vec<record::Record> = Vec::new();
     for row in collection {
-        for column in row {
-            println!("{}", column);
+        // Note: records will be in reverse order from collection
+        let record: Result<record::Record, csv::Error> = row.unwrap().deserialize(None);
+        match record {
+            Ok(r) => {
+                println!("{}", &r);
+                records.push(r);
+            },
+            Err(e) => { println!("{}", e); }
         }
+        
     }
 }
