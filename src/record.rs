@@ -28,11 +28,16 @@ pub struct Record {
     transaction_type: TransactionType,
     client: u16,
     tx: u32,
-    amount: f64
+    amount: Option<f64>
 }
 
 impl fmt::Display for Record {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "type: {}, client: {}, tx: {}, amount: {}", self.transaction_type, self.client, self.tx, self.amount)
+        let mut amount = "".to_string();
+        match self.amount {
+            Some(value) => { amount = value.to_string(); },
+            None => {}
+        }
+        write!(f, "type: {}, client: {}, tx: {}, amount: {}", self.transaction_type, self.client, self.tx, amount)
     }
 }
