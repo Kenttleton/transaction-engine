@@ -1,4 +1,5 @@
-use clap::Parser;
+//use clap::Parser;
+use std::env;
 use csv::{self, Trim, StringRecordsIter};
 use std::{fs::File};
 mod record;
@@ -6,18 +7,19 @@ mod client;
 use record::{Record, TransactionType};
 use client::Client;
 
-/// The transaction engine takes in a CSV file and compiles account snapshots from the transactions in the CSV file.
-#[derive(Parser, Debug)]
-#[clap(author, version, about)]
-struct Args {
-    /// Filepath for a CSV file to parse
-    #[clap(short, long)]
-    filepath: String
-}
+// /// The transaction engine takes in a CSV file and compiles account snapshots from the transactions in the CSV file.
+// #[derive(Parser, Debug)]
+// #[clap(author, version, about)]
+// struct Args {
+//     /// Filepath for a CSV file to parse
+//     #[clap(short, long)]
+//     filepath: String
+// }
 
 fn main() {
-    let args = Args::parse();
-    let reader = csv::ReaderBuilder::new().trim(Trim::All).from_path(args.filepath);
+    //let args = Args::parse();
+    let args: Vec<String> = env::args().collect();
+    let reader = csv::ReaderBuilder::new().trim(Trim::All).from_path(&args[1]);
     match reader {
         Ok(mut file) => {
             print_output(file_handler(file.records()));
