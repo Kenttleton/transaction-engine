@@ -56,7 +56,7 @@ fn compile_snapshot(transactions: Vec<Record>) -> Vec<Client> {
 }
 
 fn process_record(record: Record, transactions: &Vec<Record>, output: Vec<Client>) -> Vec<Client> {
-    println!("{}", record);
+    //println!("{}", record);
     match record.transaction_type {
         TransactionType::DEPOSIT => {
             let (index, output) = find_or_add_client(record.clone(), output.clone());
@@ -168,7 +168,7 @@ fn withdrawal(index: usize, record: Record, mut output: Vec<Client>) -> Vec<Clie
 fn dispute(index: usize, record: Record, transactions: Vec<Record>, mut output: Vec<Client>) -> Vec<Client> {
     if is_not_locked(record, output.clone()) {
         let amount = get_amount(record, transactions);
-        println!("dispute amount: {}", amount);
+        //println!("dispute amount: {}", amount);
         output[index].held += amount;
         output[index].available -= amount;
     }
@@ -178,7 +178,7 @@ fn dispute(index: usize, record: Record, transactions: Vec<Record>, mut output: 
 fn resolve(index: usize, record: Record, transactions: Vec<Record>, mut output: Vec<Client>) -> Vec<Client> {
     if is_not_locked(record, output.clone()) && has_dispute(record, transactions.clone()) {
         let amount = get_amount(record, transactions);
-        println!("resolve amount: {}", amount);
+        //println!("resolve amount: {}", amount);
         output[index].held -= amount;
         output[index].available += amount;
     }
@@ -188,7 +188,7 @@ fn resolve(index: usize, record: Record, transactions: Vec<Record>, mut output: 
 fn chargeback(index: usize, record: Record, transactions: Vec<Record>, mut output: Vec<Client>) -> Vec<Client> {
     if is_not_locked(record, output.clone()) && has_dispute(record, transactions.clone()) {
         let amount = get_amount(record, transactions);
-        println!("chargeback amount: {}", amount);
+        //println!("chargeback amount: {}", amount);
         output[index].held -= amount;
         output[index].total -= amount;
         output[index].locked = true;
