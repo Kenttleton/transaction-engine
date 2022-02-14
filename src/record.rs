@@ -1,7 +1,7 @@
 use std::fmt;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum TransactionType {
     DEPOSIT,
@@ -23,12 +23,12 @@ impl fmt::Display for TransactionType {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub struct Record {
-    transaction_type: TransactionType,
-    client: u16,
-    tx: u32,
-    amount: Option<f64>
+    pub transaction_type: TransactionType,
+    pub client: u16,
+    pub tx: u32,
+    pub amount: Option<f64>
 }
 
 impl fmt::Display for Record {
