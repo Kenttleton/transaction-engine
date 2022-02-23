@@ -128,18 +128,18 @@ fn has_dispute(record: Record, transactions: Vec<Record>) -> bool {
 }
 
 // Needed to distinguish between withdrawals and deposits on disputes
-// fn dispute_type(record: Record, transactions: Vec<Record>) -> TransactionType {
-//     match transactions.iter().find(
-//         |x| x.client == record.client && 
-//         x.tx == record.tx && 
-//         x.transaction_type != TransactionType::CHARGEBACK &&
-//         x.transaction_type != TransactionType::RESOLVE &&
-//         x.transaction_type != TransactionType::DISPUTE) 
-//     {
-//         Some(x) => x.transaction_type,
-//         None => TransactionType::DISPUTE
-//     }
-// }
+fn dispute_type(record: Record, transactions: Vec<Record>) -> TransactionType {
+    match transactions.iter().find(
+        |x| x.client == record.client && 
+        x.tx == record.tx && 
+        x.transaction_type != TransactionType::CHARGEBACK &&
+        x.transaction_type != TransactionType::RESOLVE &&
+        x.transaction_type != TransactionType::DISPUTE) 
+    {
+        Some(x) => x.transaction_type,
+        None => TransactionType::DISPUTE
+    }
+}
 
 fn is_not_locked(record: Record, output: Vec<Client>) -> bool {
     match output.iter().find(
@@ -169,31 +169,49 @@ fn withdrawal(index: usize, record: Record, mut output: Vec<Client>) -> Vec<Clie
 
 fn dispute(index: usize, record: Record, transactions: Vec<Record>, mut output: Vec<Client>) -> Vec<Client> {
     if is_not_locked(record, output.clone()) {
-        let amount = get_amount(record, transactions);
+        let amount = get_amount(record, transactions.clone());
         //println!("dispute amount: {}", amount);
-        output[index].held += amount;
-        output[index].available -= amount;
+        let dispute_type = dispute_type(record, transactions);
+        if dispute_type == TransactionType::DEPOSIT {
+            output[index].held += amount;
+            output[index].available -= amount;
+        } else if dispute_type == TransactionType::WITHDRAWAL {
+            output[index].held += amount;
+        }
     }
     output
 }
 
 fn resolve(index: usize, record: Record, transactions: Vec<Record>, mut output: Vec<Client>) -> Vec<Client> {
     if is_not_locked(record, output.clone()) && has_dispute(record, transactions.clone()) {
-        let amount = get_amount(record, transactions);
+        let amount = get_amount(record, transactions.clone());
         //println!("resolve amount: {}", amount);
-        output[index].held -= amount;
-        output[index].available += amount;
+        let dispute_type = dispute_type(record, transactions);
+        if dispute_type == TransactionType::DEPOSIT {
+            output[index].held -= amount;
+            output[index].available += amount;
+        } else if dispute_type == TransactionType::WITHDRAWAL {
+            output[index].held -= amount;
+        }
     }
     output
 }
 
 fn chargeback(index: usize, record: Record, transactions: Vec<Record>, mut output: Vec<Client>) -> Vec<Client> {
     if is_not_locked(record, output.clone()) && has_dispute(record, transactions.clone()) {
-        let amount = get_amount(record, transactions);
+        let amount = get_amount(record, transactions.clone());
         //println!("chargeback amount: {}", amount);
-        output[index].held -= amount;
-        output[index].total -= amount;
-        output[index].locked = true;
+        let dispute_type = dispute_type(record, transactions);
+        if dispute_type == TransactionType::DEPOSIT {
+            output[index].held -= amount;
+            output[index].total -= amount;
+            output[index].locked = true;
+        } else if dispute_type == TransactionType::WITHDRAWAL {
+            output[index].held -= amount;
+            output[index].total += amount;
+            output[index].available += amount;
+            output[index].locked = true;
+        }
     }
     output
 }
