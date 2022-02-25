@@ -7,6 +7,8 @@ authors = ["Kent Utterback <utterback.kent.a@gmail.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "*", features = ["derive", "regex"] }
+#clap = { version = "*", features = ["derive", "regex"] }
 csv = "*"
 serde = { version = "*", features = ["derive"]}
+log = "*"
+simple-logging = "*"

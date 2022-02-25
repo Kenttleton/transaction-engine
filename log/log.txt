@@ -1,0 +1,5 @@
+[00:00:00.001] (1764) ERROR  CSV error: record 34 (line: 34, byte: 1132): found record with 2 fields, but the previous record has 4 fields
+[00:00:00.001] (1764) ERROR  CSV deserialize error: record 35 (line: 35, byte: 1142): unknown variant `dposit`, expected one of `deposit`, `withdrawal`, `dispute`, `resolve`, `chargeback`
+[00:00:00.001] (1764) ERROR  CSV deserialize error: record 36 (line: 36, byte: 1160): field 1: cannot parse integer from empty string
+[00:00:00.002] (1764) ERROR  CSV deserialize error: record 37 (line: 37, byte: 1172): field 1: number too large to fit in target type
+[00:00:00.002] (1764) ERROR  CSV deserialize error: record 38 (line: 38, byte: 1195): field 2: number too large to fit in target type

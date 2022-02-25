@@ -32,3 +32,8 @@ deposit, 63003, 200005500, 3.1356
 withdrawal, 63003, 200005501, 1.5678
 dispute, 63003, 200005501,
 chargeback, 63003, 200005501,
+deposit,
+dposit,12,22,1.5
+deposit,,,
+deposit,70000,12, 1.5
+deposit,1,5294967295, 1.5
