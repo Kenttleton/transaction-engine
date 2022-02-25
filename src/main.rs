@@ -5,7 +5,7 @@ use std::{env, thread};
 pub mod client;
 mod record;
 use client::Client;
-use log::{error, info, LevelFilter};
+use log::{error, info, warn, LevelFilter};
 use record::Record;
 use simple_logging;
 use sysinfo::{System, SystemExt};
@@ -29,14 +29,16 @@ fn main() {
     let stack_size: usize = match metadata(&args[1]) {
         Ok(l) => {
             let file_size = l.len();
-            info!("Stack size set to {} Bytes", 2 * file_size);
-            2 * file_size as usize
+            let size: usize = 2 * file_size as usize;
+            info!("Stack size set to {} Bytes", size);
+            size
         }
         Err(e) => {
             let default_windows = 1024 * 1024;
             error!("{}", e);
-            info!("Stack size set to {} Bytes", 2 * default_windows);
-            2 * default_windows
+            let size: usize = 2 * default_windows as usize;
+            info!("Stack size set to {} Bytes", size);
+            size
         }
     };
     thread_handler(stack_size, args[1].clone());
@@ -50,7 +52,7 @@ fn thread_handler(mut stack_size: usize, path: String) {
     // if stack size is over half available/free memory, set to half available/free memory
     if stack_size > free_mem {
         stack_size = free_mem / 2;
-        info!("Stack size is too large. Resetting to {} Bytes", stack_size);
+        warn!("Stack size is too large. Resetting to {} Bytes", stack_size);
     }
     // Create a child thread that is larger than the Windows default to handle larger files
     let engine_thread = thread::Builder::new()
