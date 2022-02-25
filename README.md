@@ -14,7 +14,7 @@ A more elaborate interface would help developers interact with this program. Ori
 ## Updates
 Logic was added to compensate for the reversal of withdrawal transactions as mentioned above. All numbers on the account are treated as positive regardless of transaction under dispute. This means held funds are positive in value until resolved or chargedback regardless of if it was a deposit or withdrawal. Withdrawal, like deposit funds, are not counted in the available column until a resolution scenario occurs.
 
-I also added a thread spawn mechanism to increase the memory size to 2 MB so thread memory is consistent cross-platform and is controlled by the `STACK_SIZE` variable. This would be the beginning of a multithreaded approach to handle concurrent streams with a thread pool to manage concurrent processes.  
+A thread spawn mechanism to increase the memory size based on filesize. This is to compensate for larger file sizes in memory. A max of half the available/free memory on a machine is set as the max limit to give plenty of overhead for other processes. This would be the beginning of a multithreaded approach to handle concurrent streams with a thread pool to manage concurrent processes. Attach this to TCP connections and handle streams.
 
 Extra test cases were added to my test file to test all valid scenarios. A few bad formats were added to test logging and stability of the application.
 

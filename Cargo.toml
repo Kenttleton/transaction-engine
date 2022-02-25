@@ -12,3 +12,4 @@ csv = "*"
 serde = { version = "*", features = ["derive"]}
 log = "*"
 simple-logging = "*"
+sysinfo = "*"

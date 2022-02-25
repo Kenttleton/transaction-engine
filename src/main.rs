@@ -1,13 +1,14 @@
 //use clap::Parser;
 use csv::{self, StringRecordsIter, Trim};
-use std::fs::File;
+use std::fs::{metadata, File};
 use std::{env, thread};
-mod client;
+pub mod client;
 mod record;
 use client::Client;
-use log::{error, LevelFilter};
-use record::{Record, TransactionType};
+use log::{error, info, LevelFilter};
+use record::Record;
 use simple_logging;
+use sysinfo::{System, SystemExt};
 
 // /// The transaction engine takes in a CSV file and compiles account snapshots from the transactions in the CSV file.
 // #[derive(Parser, Debug)]
@@ -18,21 +19,44 @@ use simple_logging;
 //     filepath: String
 // }
 
-const STACK_SIZE: usize = 2 * 1024 * 1024;
-
 fn main() {
     //let args = Args::parse();
     // Set environment for debugging
     std::env::set_var("RUST_BACKTRACE", "full");
     simple_logging::log_to_file("./log/log.txt", LevelFilter::Info).unwrap();
+    let args: Vec<String> = env::args().collect();
+    // Create a stack memory size based on 2 times the file size or 2 MB
+    let stack_size: usize = match metadata(&args[1]) {
+        Ok(l) => {
+            let file_size = l.len();
+            info!("Stack size set to {} Bytes", 2 * file_size);
+            2 * file_size as usize
+        }
+        Err(e) => {
+            let default_windows = 1024 * 1024;
+            error!("{}", e);
+            info!("Stack size set to {} Bytes", 2 * default_windows);
+            2 * default_windows
+        }
+    };
+    thread_handler(stack_size, args[1].clone());
+}
+
+fn thread_handler(mut stack_size: usize, path: String) {
+    let mut sys = System::new();
+    sys.refresh_memory();
+    // Convert to Bytes from KB
+    let free_mem = (sys.free_memory() * 1024) as usize;
+    // if stack size is over half available/free memory, set to half available/free memory
+    if stack_size > free_mem {
+        stack_size = free_mem / 2;
+        info!("Stack size is too large. Resetting to {} Bytes", stack_size);
+    }
     // Create a child thread that is larger than the Windows default to handle larger files
     let engine_thread = thread::Builder::new()
-        .stack_size(STACK_SIZE)
+        .stack_size(stack_size)
         .spawn(move || {
-            let args: Vec<String> = env::args().collect();
-            let reader = csv::ReaderBuilder::new()
-                .trim(Trim::All)
-                .from_path(&args[1]);
+            let reader = csv::ReaderBuilder::new().trim(Trim::All).from_path(path);
             match reader {
                 Ok(mut file) => {
                     print_output(file_handler(file.records()));
@@ -79,181 +103,7 @@ fn compile_snapshot(transactions: Vec<Record>) -> Vec<Client> {
     let mut output: Vec<Client> = Vec::new();
     // Iterate through transactions in the correct order due to reversal
     for r in transactions.iter().rev() {
-        output = process_record(*r, &transactions_copy, output);
-    }
-    output
-}
-
-fn process_record(record: Record, transactions: &Vec<Record>, output: Vec<Client>) -> Vec<Client> {
-    //println!("{}", record);
-    match record.transaction_type {
-        TransactionType::DEPOSIT => {
-            let (index, output) = find_or_add_client(record.clone(), output.clone());
-            deposit(index, record.clone(), output)
-        }
-        TransactionType::WITHDRAWAL => {
-            let (index, output) = find_or_add_client(record.clone(), output.clone());
-            withdrawal(index, record.clone(), output)
-        }
-        TransactionType::DISPUTE => {
-            let (index, output) = find_or_add_client(record.clone(), output.clone());
-            dispute(index, record.clone(), transactions.clone(), output)
-        }
-        TransactionType::RESOLVE => {
-            let (index, output) = find_or_add_client(record.clone(), output.clone());
-            resolve(index, record.clone(), transactions.clone(), output)
-        }
-        TransactionType::CHARGEBACK => {
-            let (index, output) = find_or_add_client(record.clone(), output.clone());
-            chargeback(index, record.clone(), transactions.clone(), output)
-        }
-    }
-}
-
-fn find_or_add_client(record: Record, output: Vec<Client>) -> (usize, Vec<Client>) {
-    let client = output.iter().position(|x| x.client == record.client);
-    match client {
-        Some(x) => (x, output),
-        None => add_client(record, output),
-    }
-}
-
-fn add_client(record: Record, mut output: Vec<Client>) -> (usize, Vec<Client>) {
-    let client = Client {
-        client: record.client,
-        available: 0.0,
-        held: 0.0,
-        total: 0.0,
-        locked: false,
-    };
-    output.push(client);
-    find_or_add_client(record, output)
-}
-
-fn get_amount(record: Record, transactions: Vec<Record>) -> f64 {
-    match transactions.iter().find(|x| {
-        x.client == record.client
-            && x.tx == record.tx
-            && x.transaction_type != TransactionType::CHARGEBACK
-            && x.transaction_type != TransactionType::RESOLVE
-            && x.transaction_type != TransactionType::DISPUTE
-    }) {
-        Some(x) => x.amount.unwrap(),
-        None => 0.0,
-    }
-}
-
-fn has_dispute(record: Record, transactions: Vec<Record>) -> bool {
-    match transactions.iter().find(|x| {
-        x.client == record.client
-            && x.tx == record.tx
-            && x.transaction_type == TransactionType::DISPUTE
-    }) {
-        Some(_) => true,
-        None => false,
-    }
-}
-
-// Needed to distinguish between withdrawals and deposits on disputes
-fn dispute_type(record: Record, transactions: Vec<Record>) -> TransactionType {
-    match transactions.iter().find(|x| {
-        x.client == record.client
-            && x.tx == record.tx
-            && x.transaction_type != TransactionType::CHARGEBACK
-            && x.transaction_type != TransactionType::RESOLVE
-            && x.transaction_type != TransactionType::DISPUTE
-    }) {
-        Some(x) => x.transaction_type,
-        None => TransactionType::DISPUTE,
-    }
-}
-
-fn is_not_locked(record: Record, output: Vec<Client>) -> bool {
-    match output
-        .iter()
-        .find(|x| x.client == record.client && x.locked)
-    {
-        Some(_) => false,
-        None => true,
-    }
-}
-
-fn deposit(index: usize, record: Record, mut output: Vec<Client>) -> Vec<Client> {
-    if is_not_locked(record, output.clone()) {
-        output[index].available += record.amount.unwrap();
-        output[index].total += record.amount.unwrap();
-    }
-    output
-}
-
-fn withdrawal(index: usize, record: Record, mut output: Vec<Client>) -> Vec<Client> {
-    if output[index].available >= record.amount.unwrap() && is_not_locked(record, output.clone()) {
-        output[index].available -= record.amount.unwrap();
-        output[index].total -= record.amount.unwrap();
-    }
-    output
-}
-
-fn dispute(
-    index: usize,
-    record: Record,
-    transactions: Vec<Record>,
-    mut output: Vec<Client>,
-) -> Vec<Client> {
-    if is_not_locked(record, output.clone()) {
-        let amount = get_amount(record, transactions.clone());
-        //println!("dispute amount: {}", amount);
-        let dispute_type = dispute_type(record, transactions);
-        if dispute_type == TransactionType::DEPOSIT {
-            output[index].held += amount;
-            output[index].available -= amount;
-        } else if dispute_type == TransactionType::WITHDRAWAL {
-            output[index].held += amount;
-        }
-    }
-    output
-}
-
-fn resolve(
-    index: usize,
-    record: Record,
-    transactions: Vec<Record>,
-    mut output: Vec<Client>,
-) -> Vec<Client> {
-    if is_not_locked(record, output.clone()) && has_dispute(record, transactions.clone()) {
-        let amount = get_amount(record, transactions.clone());
-        //println!("resolve amount: {}", amount);
-        let dispute_type = dispute_type(record, transactions);
-        if dispute_type == TransactionType::DEPOSIT {
-            output[index].held -= amount;
-            output[index].available += amount;
-        } else if dispute_type == TransactionType::WITHDRAWAL {
-            output[index].held -= amount;
-        }
-    }
-    output
-}
-
-fn chargeback(
-    index: usize,
-    record: Record,
-    transactions: Vec<Record>,
-    mut output: Vec<Client>,
-) -> Vec<Client> {
-    if is_not_locked(record, output.clone()) && has_dispute(record, transactions.clone()) {
-        let amount = get_amount(record, transactions.clone());
-        //println!("chargeback amount: {}", amount);
-        let dispute_type = dispute_type(record, transactions);
-        if dispute_type == TransactionType::DEPOSIT {
-            output[index].held -= amount;
-            output[index].total -= amount;
-            output[index].locked = true;
-        } else if dispute_type == TransactionType::WITHDRAWAL {
-            output[index].held -= amount;
-            output[index].total += amount;
-            output[index].available += amount;
-            output[index].locked = true;
-        }
+        output = r.process(&transactions_copy, output);
     }
     output
 }
